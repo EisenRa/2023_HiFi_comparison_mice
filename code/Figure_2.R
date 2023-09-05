@@ -13,9 +13,9 @@ library(ggpubr)
 library(patchwork)
 
 #Get MAGs found in all sequencing strategies
-n_contigs <- read_delim("3_Outputs/mag_stats/n_contigs_per_bin.tsv", col_names = c("genome", "n_contigs")) %>%
+n_contigs <- read_delim("data/mag_stats/n_contigs_per_bin.tsv", col_names = c("genome", "n_contigs")) %>%
   mutate(genome = str_replace_all(genome, ".gz", ""))
-genome_info <- read_delim("3_Outputs/mag_stats/genomeInformation.csv") %>%
+genome_info <- read_delim("data/mag_stats/genomeInformation.csv") %>%
   mutate(genome = str_replace_all(genome, ".gz", ""))
 
 #Merge data into a single frame, mutate new columns

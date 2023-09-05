@@ -12,12 +12,24 @@ library(ggdist)
 library(ggpubr)
 library(patchwork)
 
+#Set theme and colours
+theme_RE <- theme(
+  text = element_text(family = "Arial"),
+  axis.title.x = element_markdown(size = 15, family = "Arial"),
+  axis.title.y = element_markdown(size = 15, family = "Arial"),
+  axis.text.x = element_markdown(size = 12, family = "Arial"),
+  axis.text.y = element_markdown(size = 12, family = "Arial"),
+  panel.grid.major.x = element_blank(),
+  panel.grid.minor = element_blank(),
+  legend.text = element_text(size = 12),
+  legend.title = element_blank())
+
 #Get MAGs found in all sequencing strategies
-clusters <- read_delim("3_Outputs/mag_stats/Cdb.csv") %>%
+clusters <- read_delim("data/mag_stats/Cdb.csv") %>%
   mutate(genome = str_replace_all(genome, ".gz", ""))
-n_contigs <- read_delim("3_Outputs/mag_stats/n_contigs_per_bin.tsv", col_names = c("genome", "n_contigs")) %>%
+n_contigs <- read_delim("data/mag_stats/n_contigs_per_bin.tsv", col_names = c("genome", "n_contigs")) %>%
   mutate(genome = str_replace_all(genome, ".gz", ""))
-genome_info <- read_delim("3_Outputs/mag_stats/genomeInformation.csv") %>%
+genome_info <- read_delim("data/mag_stats/genomeInformation.csv") %>%
   mutate(genome = str_replace_all(genome, ".gz", ""))
 
 
@@ -43,7 +55,7 @@ library(scales)
 library(ggh4x)
 
 #Load in the count table:
-count_table <- read_delim("3_Outputs/mag_stats/coverm_mag_stats.tsv", delim = '\t')
+count_table <- read_delim("data/mag_stats/coverm_mag_stats.tsv", delim = '\t')
 
 #Get list of dereplicated MAGs, join to MAG_stats table
 dereplicated_mags <- count_table %>%
@@ -132,7 +144,7 @@ norm_count_table <- count_table %>%
   pivot_wider(names_from = sample, values_from = read_count)
 
 #Create a phyloseq object
-taxonomy <- read.delim("3_Outputs/mag_stats/gtdbtk.bac120.summary.tsv", sep = '\t') %>%
+taxonomy <- read.delim("data/mag_stats/gtdbtk.bac120.summary.tsv", sep = '\t') %>%
   mutate(user_genome = str_replace_all(user_genome, "_renamed.fa", ""))
 
 ## Coerce gtdb-tk output to phyloseq taxonomy table
@@ -177,7 +189,7 @@ percent(mean(sample_sums(prune_taxa(MAGs_that_long_reads_missed_vector, ps.ra)))
 
 
 #Add sample temporal information so we can order samples by time
-mouse_sample_times <- read_delim("3_Outputs/mouse_sample_times.txt") %>%
+mouse_sample_times <- read_delim("data/mouse_sample_times.txt") %>%
   select(!date) %>%
   separate(., sample_time, into = c("mouse_id", "order_number"), sep = "_") %>%
   mutate(sample = str_replace_all(sample, " ", ""))
@@ -329,7 +341,7 @@ fig3_hybrid <- df %>%
   theme_classic() +
   theme_RE +
   theme_tiles +
-  xlab("Hy")
+  xlab("H")
 
 
 fig3_longread <- df %>%
@@ -346,7 +358,7 @@ fig3_longread <- df %>%
   theme_classic() +
   theme_RE +
   theme_tiles +
-  xlab("LR")
+  xlab("L")
 
 
 fig3_completeness <- df %>%

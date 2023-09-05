@@ -14,7 +14,7 @@ num_bins <- tibble(
 colours <- c("short_20gbp" = "#74a9cf", "short_40gbp" = "#0570b0",
              "hybrid" = "#fc8d59", "long_read" ="#969696")
 
-df <- read_delim("3_Outputs/mag_stats/antismash_summary.tsv", 
+df <- read_delim("data/mag_stats/antismash_summary.tsv", 
                  delim="\t", 
                  col_names = c("region", "product", "region_length", 
                                "n_genes", "contig_edge")) %>%

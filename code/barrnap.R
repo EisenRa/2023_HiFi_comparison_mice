@@ -1,7 +1,7 @@
 library(tidyverse)
 library(ggpattern)
 
-df <- read_delim("3_Outputs/mag_stats/barrnap_results.tsv", col_names = c("length", "mag"), delim = '\t') %>%
+df <- read_delim("data/mag_stats/barrnap_results.tsv", col_names = c("length", "mag"), delim = '\t') %>%
   mutate(length = as.numeric(str_extract(length, "(?<=L=)\\d+")),
          assembly = case_when(str_detect(mag, "hifiasm") ~ "long_read",
                               str_detect(mag, "Hybrid") ~ "hybrid",
