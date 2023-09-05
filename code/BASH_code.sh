@@ -1,12 +1,12 @@
+### BASH code for primary analyses
 ###
-
 ################################################################################
 #Downsampled short read analysis:
 module load seqtk/1.3 pigz/2.3.4
-for i in *_1.fastq.gz; do seqtk sample -s 1337 $i 5700000 > ${i/_1.fastq.gz/_ss_1.fastq}; done
-for i in *_2.fastq.gz; do seqtk sample -s 1337 $i 5700000 > ${i/_2.fastq.gz/_ss_2.fastq}; done
-for i in *_1.fastq.gz; do seqtk sample -s 1337 $i 6300000 > ${i/_1.fastq.gz/_ss_1.fastq}; done
-for i in *_2.fastq.gz; do seqtk sample -s 1337 $i 6300000 > ${i/_2.fastq.gz/_ss_2.fastq}; done
+for i in C04M3/*_1.fastq.gz; do seqtk sample -s 1337 $i 5700000 > $(basename ${i/_1.fastq.gz/_ss20gb_1.fastq}); done
+for i in C04M3/*_2.fastq.gz; do seqtk sample -s 1337 $i 5700000 > $(basename ${i/_2.fastq.gz/_ss20gb_2.fastq}); done
+for i in C13F5/*_1.fastq.gz; do seqtk sample -s 1337 $i 6300000 > $(basename ${i/_1.fastq.gz/_ss20gb_1.fastq}); done
+for i in C13F5/*_2.fastq.gz; do seqtk sample -s 1337 $i 6300000 > $(basename ${i/_2.fastq.gz/_ss20gb_2.fastq}); done
 for i in C04M3/*_1.fastq.gz; do seqtk sample -s 1337 $i 11400000 > $(basename ${i/_1.fastq.gz/_ss40gb_1.fastq}); done
 for i in C04M3/*_2.fastq.gz; do seqtk sample -s 1337 $i 11400000 > $(basename ${i/_2.fastq.gz/_ss40gb_2.fastq}); done
 for i in C13F5/*_1.fastq.gz; do seqtk sample -s 1337 $i 12600000 > $(basename ${i/_1.fastq.gz/_ss40gb_1.fastq}); done
@@ -66,27 +66,7 @@ done
 coverm genome -b *.bam -s - -m count covered_fraction length -t 40 --min-covered-fraction 0 > CoverM_MAG_table_META.tsv
 
 
-#Map long reads to dereplicated MAG catalogue
-module load minimap2/2.24r1122
-module load samtools/1.14
-
-minimap2 -ax map-hifi \
-catted_ref.fna.gz \
--t 40 \
-m64241e_211219_040338.hifi_reads.fastq.gz \
-| samtools sort -o long_read_mapping/C13M5.bam
-
-minimap2 -ax map-hifi \
-catted_ref.fna.gz \
--t 40 \
-m64241e_211217_170900.hifi_reads.fastq.gz \
-| samtools sort -o long_read_mapping/C04M3_host.bam
-
-
-
 #Gtdbtk
-export GTDBTK_DATA_PATH=/home/projects/ku-cbd/people/rapeis/0_DBs/release202
-
 for i in *Gb*; do gtdbtk classify_wf --genome_dir $i/dereplicated_genomes --extension .fa --prefix $i --cpus 40 --scratch_dir . --out_dir "$i"_gtdbtk; done
 
 for i in */classify/*tsv; do sed '1d;' $i | cat; done >> gtdbtk_merged_temp.tsv
@@ -94,27 +74,8 @@ head -1 20Gb_long_gtdbtk/classify/20Gb_long.bac120.summary.tsv > header.tsv
 cat header.tsv gtdbtk_merged_temp.tsv > gtdbtk_merged.tsv
 
 
-
-#DRAM
-module load tools miniconda3/4.10.1
-conda activate DRAM
-
-for i in `seq 1 10`; do mkdir -p group$i; find dereplicated_genomes/ -type f | head -n 23 | xargs -i mv "{}" group$i; done
-for i in `seq 2 10`; do sed -i'' "s/group1/group$i/" DRAM-batch$i.sh; done
-for i in `seq 2 10`; do sed -i'' "s/batch1/batch$i/" DRAM-batch$i.sh; done
-for i in `seq 2 10`; do qsub180 DRAM-batch$i.sh; done
-
-DRAM.py merge_annotations -i batch* -o merged_annotations
-DRAM.py distill -i merged_annotations/annotations.tsv --rrna_path merged_annotations/rrnas.tsv --trna_path merged_annotations/trnas.tsv -o DRAM_distillate
-
-
-
-
-# hifiasm analyses
-
+# hifiasm assemblies
 ## assembly
-#!/bin/sh
-#SBATCH -c 32 --mem 372G --time 24:00:00 # number of cores
 /projects/mjolnir1/people/ncl550/0_software/hifiasm-meta/hifiasm_meta -t32 -o m64241e_211217_170900 m64241e_211217_170900.hifi_reads.fastq.gz 2>asm_m6
 4241e_211217_170900.log
 
@@ -127,7 +88,7 @@ for i in *p_ctg.gfa; do cat $i | awk '$1=="S" {printf ">%s\n%s\n", $2, $3} ' | g
 
 
 
-##renaming contigs
+##renaming contigs (bbmap)
 rename.sh in=m64241e_211217_170900.rescue.fa out=C04M3_longread_hifiasm_CIRCULAR.fa prefix=C04M3_longread_hifiasm_CIRCULAR addprefix=t
 rename.sh in=m64241e_211219_040338.rescue.fa out=C13F5_longread_hifiasm_CIRCULAR.fa prefix=C13F5_longread_hifiasm_CIRCULAR addprefix=t
 
@@ -135,7 +96,7 @@ rename.sh in=m64241e_211217_170900.rescue.all.fa out=C04M3_longread_hifiasm_ALL.
 rename.sh in=m64241e_211219_040338.rescue.all.fa out=C13F5_longread_hifiasm_ALL.fa prefix=C13F5_longread_hifiasm_ALL addprefix=t
 
 
-##Splitting circular bins
+##Splitting circular bins (seqkit)
 seqkit split C04M3_longread_hifiasm_CIRCULAR.fa -i
 seqkit split C13M5_longread_hifiasm_CIRCULAR.fa -i
 seqkit split C04M3_longread_hifiasm_ALL.fa -i
@@ -159,8 +120,8 @@ for i in C04M3_longread_hifiasm_ALL.fa.split/*.fa; do echo $(basename $i) >> nam
 
 
 
-
 # PACBIO HIFI PIPELINE:
+# Converting to metawrap-style output
 cut -f1,7,8 C04M3.HiFi-MAG.summary.txt > C04M3_metawrap_70_10.stats
 cut -f1,7,8 C13F5.HiFi-MAG.summary.txt > C13F5_metawrap_70_10.stats
 
@@ -169,17 +130,14 @@ cut -f1,7,8 C13F5.HiFi-MAG.summary.txt > C13F5_metawrap_70_10.stats
 #MAG mapping rate 
 for i in MAGs/*.fa.gz; do bowtie2-build --threads 32 $i $i; done
 
-
 for i in MAGs/*.fa.gz; do for r in Reads/*_1.fastq.gz; do bowtie2 --threads 32 -x $i -1 $r -2 ${r/_1.fa/_2.fa} | samtools view -b -@ 32 - | samtools sort -@ 32 -o BAMs/$(basename "${r/_1.fastq.gz/}")_"$(basename ${i/.fa.gz/.bam})"; done; done
 
 
-# long read renaming
+# long read renaming (bbmap)
 rename.sh in=C04M3_hifi_mags.fa.gz out=C04M3_hifi_mags_renamed.fa.gz zl=9 prefix=contig^
 
 
-619 mags pre dRep
-
-Barnap 16S
+# Barnap 16S
 for i in *.fa; do barrnap --threads 4 --incseq < $i > ${i/.fa/_RNAs.fa} 2> ${i/.fa/_STATS.tsv}; done
 
 for i in *STATS.tsv; do grep 'Found: 16S_rRNA' $i >> ${i/_STATS/_16SrRNAs}; done
@@ -187,4 +145,5 @@ for i in *STATS.tsv; do grep 'Found: 16S_rRNA' $i >> ${i/_STATS/_16SrRNAs}; done
 for file in *_16SrRNAs.tsv; do name=${file/_16SrRNAs.tsv/}; temp_file=$(mktemp); while IFS=$'\t' read -r -a line; do echo -e "${line[*]}\t$name" >> "$temp_file"; done < "$file"; mv "$temp_file" "$file"; done
 cat *_16SrRNAs.tsv > barrnap_results.tsv
 
-ANTISMASH
+# ANTISMASH
+for i in mags/*.fa.gz; do antismash -c 8 --output-dir antismash_out/$(basename ${i/.fa.gz/_antismash}) --genefinding-tool prodigal $i; done
