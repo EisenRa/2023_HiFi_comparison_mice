@@ -51,8 +51,6 @@ for i in MAGs/*/; do dRep dereplicate $(basename $i) -p 40 -comp 70 -sa 0.98 --g
 #dRep all
 dRep dereplicate ALL_longread_META_redo -comp 70 -sa 0.98 --genomeInfo MAGs_redo_longread_META/genome_info_new.csv -p 40 -g MAGs_redo_longread_META/*/*.fa.gz
 
-#Flye has non-speicifc contig headers, rename them
-for i in *.fa.gz; do rename.sh in=$i out=${i/.fa.gz/_renamed.fa.gz} prefix=${i/.fa.gz/-}; done
 
 #Map to drepped genomes
 cat dereplicated_genomes/*_renamed.fa.gz > catted_ref.fna.gz
@@ -138,12 +136,19 @@ rename.sh in=C04M3_hifi_mags.fa.gz out=C04M3_hifi_mags_renamed.fa.gz zl=9 prefix
 
 
 # Barnap 16S
-for i in *.fa; do barrnap --threads 4 --incseq < $i > ${i/.fa/_RNAs.fa} 2> ${i/.fa/_STATS.tsv}; done
+for i in *.fa; do barrnap --kingdom bac --threads 1 --incseq < $i > ${i/.fa/_RNAs.fa} 2> ${i/.fa/_STATS.tsv}; done
 
-for i in *STATS.tsv; do grep 'Found: 16S_rRNA' $i >> ${i/_STATS/_16SrRNAs}; done
+for i in *STATS.tsv; do grep 'Found:' $i >> ${i/_STATS/_16SrRNAs}; done
 
 for file in *_16SrRNAs.tsv; do name=${file/_16SrRNAs.tsv/}; temp_file=$(mktemp); while IFS=$'\t' read -r -a line; do echo -e "${line[*]}\t$name" >> "$temp_file"; done < "$file"; mv "$temp_file" "$file"; done
 cat *_16SrRNAs.tsv > barrnap_results.tsv
+
+# tRNAscan-SE 2.0
+for i in *.fa; do tRNAscan-SE -B --thread 8 -o ${i/.fa/_tRNA_output.tsv} -m ${i/.fa/_tRNA_stats.tsv} $i; done
+
+for i in *_tRNA_stats.tsv; do echo ${i/_tRNA_stats.tsv/} >> trna_genomes.tsv && grep 'Total tRNAs' $i | cut -f2 -d ':' | sed 's/ //g' >> trna_numbers.tsv; done
+
+paste trna_genomes.tsv trna_numbers.tsv > trna_stats.tsv
 
 # ANTISMASH
 for i in mags/*.fa.gz; do antismash -c 8 --output-dir antismash_out/$(basename ${i/.fa.gz/_antismash}) --genefinding-tool prodigal $i; done
