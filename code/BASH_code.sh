@@ -152,3 +152,43 @@ paste trna_genomes.tsv trna_numbers.tsv > trna_stats.tsv
 
 # ANTISMASH
 for i in mags/*.fa.gz; do antismash -c 8 --output-dir antismash_out/$(basename ${i/.fa.gz/_antismash}) --genefinding-tool prodigal $i; done
+
+# MGBC mapping analysis
+mkdir MGBC
+cd MGBC/
+
+wget https://zenodo.org/record/4840600/files/MGBC-hqnr_26640.tar.gz?download=1 && mv 'MGBC_md_26640.tar.gz?download=1' MGBC_md_26640.tar.gz
+wget https://zenodo.org/record/4840600/files/MGBC_md_26640.tar.gz?download=1 && mv 'MGBC-hqnr_26640.tar.gz?download=1' MGBC-hqnr_26640.tar.gz
+
+tar -xvzf MGBC_md_26640.tar.gz
+tar -xvzf MGBC-hqnr_26640.tar.gz
+
+cut -f1,4,5 MGBC_md_26640.tsv | sed 's/\t/,/g' > MGBC_md_26640_for_dRep.csv
+sed -i'' 's/,/.fna,/' MGBC_md_26640_for_dRep.csv
+sed -i'' 's/Genome.fna,Completeness,Contamination/genome,completeness,contamination/' MGBC_md_26640_for_dRep.csv
+
+```
+#!/bin/sh
+#SBATCH -c 32 --mem 256G --time 64:00:00 # number of cores
+
+dRep dereplicate dRep/ -p 32 -sa 0.98 --genomeInfo  MGBC_md_26640_for_dRep.csv -g MGBC-hqnr_26640/*.fna
+```
+
+##BBmap's rename.sh
+for i in dRep/dereplicated_genomes/*fna; do rename.sh in=$i out=${i/.fna/_renamed.fna} prefix=$(basename ${i/.fna/^}); done
+
+cat dRep/dereplicated_genomes/*_renamed.fna > MGBC_combined_98ani.fasta && gzip MGBC_combined_98ani.fasta
+
+```
+#!/bin/sh
+#SBATCH -c 8 --mem 72G --time 12:00:00 # number of cores
+mkdir BAMs
+
+bowtie2-build --large-index --threads 8 MGBC_combined_98ani.fasta.gz MGBC_combined_98ani.fasta.gz
+
+for i in reads/*_1.fastq.gz; do bowtie2 --threads 8 -x MGBC_combined_98ani.fasta.gz -1 $i -2 ${i/_1.fa/_2.fa} | samtools view -b -@ 8 - | samtools sort -@ 8 -
+o BAMs/$(basename ${i/_1.fastq.gz/.bam}); done
+
+coverm genome -b BAMs/* -s ^ -m relative_abundance -t 8 --min-covered-fraction 0 > coverm_MGBC.tsv
+```
+
